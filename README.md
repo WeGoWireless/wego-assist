@@ -105,7 +105,7 @@ intentionally log Home Assistant tool arguments or entity state values.
 
 ## Status
 
-WeGo Assist is currently version **0.1.0** and should be considered
+WeGo Assist is currently version **0.1.1** and should be considered
 experimental. It is being developed against Home Assistant 2026.9-era LLM
 APIs, which may change in future Home Assistant releases.
 
