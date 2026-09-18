@@ -10,6 +10,7 @@ import aiohttp
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
     UpdateFailed,
@@ -81,12 +82,14 @@ class WeGoAssistCoordinator(DataUpdateCoordinator):
         try:
             client_timeout = aiohttp.ClientTimeout(total=timeout)
 
-            async with aiohttp.ClientSession(
-                timeout=client_timeout
-            ) as session:
-                async with session.get(url) as response:
-                    response.raise_for_status()
-                    payload = await response.json()
+            session = async_get_clientsession(self.hass)
+
+            async with session.get(
+                url,
+                timeout=client_timeout,
+            ) as response:
+                response.raise_for_status()
+                payload = await response.json()
 
             latency_ms = round(
                 (time.monotonic() - start) * 1000
