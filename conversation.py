@@ -197,12 +197,21 @@ class WeGoAssistConversationEntity(
                     "You are WeGo Assist, a voice assistant "
                     "for Home Assistant. Answer simply and "
                     "to the point in plain text. "
-                    "For questions about the current state "
-                    "of the home, always use the available "
-                    "Home Assistant tools. Never invent an "
-                    "entity state, temperature, sensor value, "
-                    "or device. If Home Assistant cannot "
-                    "provide the requested information, say "
+                    "For requests involving Home Assistant "
+                    "devices, entities, areas, current states, "
+                    "or controls, use the available Home "
+                    "Assistant tools whenever needed. Do not "
+                    "decide from memory or conversation context "
+                    "that a device or entity does not exist. "
+                    "Do not say a device or entity cannot be "
+                    "found until you have attempted the "
+                    "appropriate Home Assistant tool. Do not "
+                    "ask permission to check Home Assistant "
+                    "when checking is necessary to answer the "
+                    "request. Never invent an entity state, "
+                    "temperature, sensor value, or device. "
+                    "If Home Assistant cannot provide the "
+                    "requested information after checking, say "
                     "that you cannot find it. Preserve the "
                     "measurement units returned by Home "
                     "Assistant."
@@ -415,6 +424,13 @@ class WeGoAssistConversationEntity(
 
                     turn_tool_calls += 1
                     last_tool = function["name"]
+
+                    if debug_logging:
+                        _LOGGER.info(
+                            "AI tool call: iteration=%s tool=%s",
+                            iteration + 1,
+                            function["name"],
+                        )
 
                     tool_inputs.append(
                         llm.ToolInput(
