@@ -1,0 +1,29 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up WeGo Assist",
+        "description": "Set up the WeGo Assist local AI integration."
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "WeGo Assist Options",
+        "data": {
+          "lm_studio_url": "LM Studio URL",
+          "request_timeout": "LM Studio Request Timeout",
+          "ai_timeout": "AI Response Timeout",
+          "debug_logging": "Enable Debug Logging"
+        },
+        "data_description": {
+          "lm_studio_url": "URL of the LM Studio OpenAI-compatible API.",
+          "request_timeout": "Timeout in seconds for LM Studio connection and health checks.",
+          "ai_timeout": "Maximum time in seconds to wait for an AI response.",
+          "debug_logging": "Enable additional WeGo Assist diagnostic messages in the Home Assistant log."
+        }
+      }
+    }
+  }
+}

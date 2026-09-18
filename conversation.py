@@ -19,7 +19,11 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import (
+    CONF_AI_TIMEOUT,
+    CONF_DEBUG_LOGGING,
     CONF_LM_STUDIO_URL,
+    DEFAULT_AI_TIMEOUT,
+    DEFAULT_DEBUG_LOGGING,
     DEFAULT_LM_STUDIO_URL,
     DOMAIN,
 )
@@ -28,7 +32,6 @@ from .coordinator import WeGoAssistCoordinator
 _LOGGER = logging.getLogger(__name__)
 
 MAX_TOOL_ITERATIONS = 10
-AI_TIMEOUT = 180
 
 
 async def async_setup_entry(
@@ -253,7 +256,16 @@ class WeGoAssistConversationEntity(
         url = f"{base_url}/chat/completions"
 
         session = async_get_clientsession(self.hass)
-        timeout = aiohttp.ClientTimeout(total=AI_TIMEOUT)
+
+        ai_timeout = self.entry.options.get(
+            CONF_AI_TIMEOUT,
+            DEFAULT_AI_TIMEOUT,
+        )
+        debug_logging = self.entry.options.get(
+            CONF_DEBUG_LOGGING,
+            DEFAULT_DEBUG_LOGGING,
+        )
+        timeout = aiohttp.ClientTimeout(total=ai_timeout)
 
         agent_id = self.entity_id or DOMAIN
 
@@ -430,16 +442,31 @@ class WeGoAssistConversationEntity(
                 final_content
             )
 
+        response_time_ms = round(
+            (time.monotonic() - turn_start) * 1000
+        )
+
         self.coordinator.ai_diagnostics.update(
             {
                 "last_turn_bytes": turn_bytes,
-                "response_time_ms": round(
-                    (time.monotonic() - turn_start) * 1000
-                ),
+                "response_time_ms": response_time_ms,
                 "tool_calls": turn_tool_calls,
                 "last_tool": last_tool,
             }
         )
+
+        if debug_logging:
+            _LOGGER.info(
+                "AI turn complete: model=%s iterations=%s "
+                "tool_calls=%s last_tool=%s turn_bytes=%s "
+                "response_time_ms=%s",
+                model,
+                iteration + 1,
+                turn_tool_calls,
+                last_tool or "none",
+                turn_bytes,
+                response_time_ms,
+            )
 
         return conversation.async_get_result_from_chat_log(
             user_input,

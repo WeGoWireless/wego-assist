@@ -5,9 +5,11 @@ import voluptuous as vol
 from homeassistant import config_entries
 
 from .const import (
+    CONF_AI_TIMEOUT,
     CONF_DEBUG_LOGGING,
     CONF_LM_STUDIO_URL,
     CONF_REQUEST_TIMEOUT,
+    DEFAULT_AI_TIMEOUT,
     DEFAULT_DEBUG_LOGGING,
     DEFAULT_LM_STUDIO_URL,
     DEFAULT_REQUEST_TIMEOUT,
@@ -71,6 +73,13 @@ class WeGoAssistOptionsFlow(config_entries.OptionsFlow):
                         DEFAULT_REQUEST_TIMEOUT,
                     ),
                 ): vol.All(vol.Coerce(int), vol.Range(min=1, max=300)),
+                vol.Required(
+                    CONF_AI_TIMEOUT,
+                    default=self.config_entry.options.get(
+                        CONF_AI_TIMEOUT,
+                        DEFAULT_AI_TIMEOUT,
+                    ),
+                ): vol.All(vol.Coerce(int), vol.Range(min=10, max=600)),
                 vol.Required(
                     CONF_DEBUG_LOGGING,
                     default=self.config_entry.options.get(
