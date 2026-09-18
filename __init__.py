@@ -24,6 +24,7 @@ _LOGGER = logging.getLogger(__name__)
 PLATFORMS = [
     Platform.BINARY_SENSOR,
     Platform.SENSOR,
+    Platform.CONVERSATION,
 ]
 
 SERVICE_TEST_PROMPT = "test_prompt"
