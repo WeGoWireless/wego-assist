@@ -30,6 +30,62 @@ async def async_setup_entry(
         [
             WeGoAssistLatencySensor(coordinator, entry),
             WeGoAssistModelsSensor(coordinator, entry),
+            WeGoAssistDiagnosticSensor(
+                coordinator,
+                entry,
+                "last_request_bytes",
+                "AI Request Size",
+                "B",
+                "mdi:database-arrow-up",
+            ),
+            WeGoAssistDiagnosticSensor(
+                coordinator,
+                entry,
+                "last_turn_bytes",
+                "AI Turn Data",
+                "B",
+                "mdi:database-sync",
+            ),
+            WeGoAssistDiagnosticSensor(
+                coordinator,
+                entry,
+                "response_time_ms",
+                "AI Response Time",
+                "ms",
+                "mdi:timer-outline",
+            ),
+            WeGoAssistDiagnosticSensor(
+                coordinator,
+                entry,
+                "message_count",
+                "AI Messages",
+                None,
+                "mdi:message-text-outline",
+            ),
+            WeGoAssistDiagnosticSensor(
+                coordinator,
+                entry,
+                "tool_count",
+                "HA Tools Available",
+                None,
+                "mdi:tools",
+            ),
+            WeGoAssistDiagnosticSensor(
+                coordinator,
+                entry,
+                "tool_calls",
+                "AI Tool Calls",
+                None,
+                "mdi:hammer-wrench",
+            ),
+            WeGoAssistDiagnosticSensor(
+                coordinator,
+                entry,
+                "last_tool",
+                "Last Tool Used",
+                None,
+                "mdi:function-variant",
+            ),
         ]
     )
 
@@ -127,6 +183,52 @@ class WeGoAssistModelsSensor(
                 [],
             )
         }
+
+    @property
+    def device_info(self):
+        """Return device information."""
+
+        return {
+            "identifiers": {(DOMAIN, "wego_assist")},
+            "name": "WeGo Assist",
+            "manufacturer": "WeGo Wireless",
+            "model": "Local AI Assistant",
+        }
+
+
+class WeGoAssistDiagnosticSensor(SensorEntity):
+    """Runtime AI diagnostic sensor."""
+
+    _attr_has_entity_name = True
+
+    def __init__(
+        self,
+        coordinator: WeGoAssistCoordinator,
+        entry: ConfigEntry,
+        key: str,
+        name: str,
+        unit: str | None,
+        icon: str,
+    ) -> None:
+        """Initialize diagnostic sensor."""
+
+        self.coordinator = coordinator
+        self._diagnostic_key = key
+
+        self._attr_name = name
+        self._attr_unique_id = (
+            f"{entry.entry_id}_ai_{key}"
+        )
+        self._attr_native_unit_of_measurement = unit
+        self._attr_icon = icon
+
+    @property
+    def native_value(self):
+        """Return diagnostic value."""
+
+        return self.coordinator.ai_diagnostics.get(
+            self._diagnostic_key
+        )
 
     @property
     def device_info(self):

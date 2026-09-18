@@ -38,6 +38,18 @@ class WeGoAssistCoordinator(DataUpdateCoordinator):
         """Initialize coordinator."""
         self.entry = entry
 
+        # Runtime diagnostics from AI conversations.
+        # These contain metadata only, never prompt content.
+        self.ai_diagnostics = {
+            "last_request_bytes": None,
+            "last_turn_bytes": None,
+            "response_time_ms": None,
+            "message_count": None,
+            "tool_count": None,
+            "tool_calls": None,
+            "last_tool": None,
+        }
+
         super().__init__(
             hass,
             _LOGGER,

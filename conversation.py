@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from typing import Any
 
 import aiohttp
@@ -256,6 +257,11 @@ class WeGoAssistConversationEntity(
 
         agent_id = self.entity_id or DOMAIN
 
+        turn_bytes = 0
+        turn_tool_calls = 0
+        last_tool = None
+        turn_start = time.monotonic()
+
         try:
             for iteration in range(MAX_TOOL_ITERATIONS):
                 payload: dict[str, Any] = {
@@ -270,6 +276,29 @@ class WeGoAssistConversationEntity(
                 if tools:
                     payload["tools"] = tools
                     payload["tool_choice"] = "auto"
+
+                request_bytes = len(
+                    json.dumps(
+                        payload,
+                        separators=(",", ":"),
+                        ensure_ascii=False,
+                    ).encode("utf-8")
+                )
+                turn_bytes += request_bytes
+
+                self.coordinator.ai_diagnostics.update(
+                    {
+                        "last_request_bytes": request_bytes,
+                        "last_turn_bytes": turn_bytes,
+                        "response_time_ms": None,
+                        "message_count": len(
+                            payload["messages"]
+                        ),
+                        "tool_count": len(tools or []),
+                        "tool_calls": turn_tool_calls,
+                        "last_tool": last_tool,
+                    }
+                )
 
                 async with session.post(
                     url,
@@ -297,6 +326,9 @@ class WeGoAssistConversationEntity(
                         arguments = json.loads(
                             arguments or "{}"
                         )
+
+                    turn_tool_calls += 1
+                    last_tool = function["name"]
 
                     tool_inputs.append(
                         llm.ToolInput(
@@ -357,6 +389,17 @@ class WeGoAssistConversationEntity(
             chat_log.async_add_assistant_content_without_tools(
                 final_content
             )
+
+        self.coordinator.ai_diagnostics.update(
+            {
+                "last_turn_bytes": turn_bytes,
+                "response_time_ms": round(
+                    (time.monotonic() - turn_start) * 1000
+                ),
+                "tool_calls": turn_tool_calls,
+                "last_tool": last_tool,
+            }
+        )
 
         return conversation.async_get_result_from_chat_log(
             user_input,
