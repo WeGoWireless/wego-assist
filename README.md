@@ -30,14 +30,31 @@ WeGo Assist has primarily been developed and tested with Qwen3 8B.
 
 ## Installation
 
-Copy the `wego_assist` directory into:
+### HACS
 
-    /config/custom_components/wego_assist/
+In HACS, add this repository as a custom repository:
 
-Restart Home Assistant.
+    https://github.com/WeGoWireless/wego-assist
+
+Select **Integration** as the repository type, then install **WeGo Assist**.
+
+Restart Home Assistant after installation.
 
 Then go to **Settings -> Devices & services -> Add Integration** and search
 for **WeGo Assist**.
+
+### Manual Installation
+
+Copy:
+
+    custom_components/wego_assist/
+
+from this repository to:
+
+    /config/custom_components/wego_assist/
+
+Restart Home Assistant, then add **WeGo Assist** from
+**Settings -> Devices & services -> Add Integration**.
 
 No `configuration.yaml` entry is required.
 
