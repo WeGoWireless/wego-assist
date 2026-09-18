@@ -335,6 +335,7 @@ class WeGoAssistConversationEntity(
                         ),
                         "tool_count": len(tools or []),
                         "tool_calls": turn_tool_calls,
+                        "iterations": iteration + 1,
                         "last_tool": last_tool,
                     }
                 )

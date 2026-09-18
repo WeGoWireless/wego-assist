@@ -51,6 +51,7 @@ class WeGoAssistCoordinator(DataUpdateCoordinator):
             "message_count": None,
             "tool_count": None,
             "tool_calls": None,
+            "iterations": None,
             "last_tool": None,
         }
 

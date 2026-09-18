@@ -113,6 +113,14 @@ async def async_setup_entry(
             WeGoAssistDiagnosticSensor(
                 coordinator,
                 entry,
+                "iterations",
+                "AI Iterations",
+                None,
+                "mdi:repeat",
+            ),
+            WeGoAssistDiagnosticSensor(
+                coordinator,
+                entry,
                 "last_tool",
                 "Last Tool Used",
                 None,
