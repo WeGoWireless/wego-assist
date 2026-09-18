@@ -1,0 +1,9 @@
+{
+  "domain": "wego_assist",
+  "name": "WeGo Assist",
+  "codeowners": [],
+  "config_flow": true,
+  "documentation": "https://github.com/",
+  "iot_class": "local_polling",
+  "version": "0.1.0"
+}
