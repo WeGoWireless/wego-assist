@@ -43,6 +43,9 @@ class WeGoAssistCoordinator(DataUpdateCoordinator):
         self.ai_diagnostics = {
             "last_request_bytes": None,
             "last_turn_bytes": None,
+            "tool_data_bytes": None,
+            "message_data_bytes": None,
+            "system_context_bytes": None,
             "response_time_ms": None,
             "message_count": None,
             "tool_count": None,

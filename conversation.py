@@ -277,6 +277,7 @@ class WeGoAssistConversationEntity(
                     payload["tools"] = tools
                     payload["tool_choice"] = "auto"
 
+                # Measure exactly what we send to LM Studio.
                 request_bytes = len(
                     json.dumps(
                         payload,
@@ -284,12 +285,44 @@ class WeGoAssistConversationEntity(
                         ensure_ascii=False,
                     ).encode("utf-8")
                 )
+
+                tool_data_bytes = len(
+                    json.dumps(
+                        payload.get("tools", []),
+                        separators=(",", ":"),
+                        ensure_ascii=False,
+                    ).encode("utf-8")
+                )
+
+                message_data_bytes = len(
+                    json.dumps(
+                        payload.get("messages", []),
+                        separators=(",", ":"),
+                        ensure_ascii=False,
+                    ).encode("utf-8")
+                )
+
+                system_context_bytes = sum(
+                    len(
+                        json.dumps(
+                            message,
+                            separators=(",", ":"),
+                            ensure_ascii=False,
+                        ).encode("utf-8")
+                    )
+                    for message in payload.get("messages", [])
+                    if message.get("role") == "system"
+                )
+
                 turn_bytes += request_bytes
 
                 self.coordinator.ai_diagnostics.update(
                     {
                         "last_request_bytes": request_bytes,
                         "last_turn_bytes": turn_bytes,
+                        "tool_data_bytes": tool_data_bytes,
+                        "message_data_bytes": message_data_bytes,
+                        "system_context_bytes": system_context_bytes,
                         "response_time_ms": None,
                         "message_count": len(
                             payload["messages"]
