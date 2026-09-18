@@ -22,9 +22,11 @@ from .const import (
     CONF_AI_TIMEOUT,
     CONF_DEBUG_LOGGING,
     CONF_LM_STUDIO_URL,
+    CONF_MODEL,
     DEFAULT_AI_TIMEOUT,
     DEFAULT_DEBUG_LOGGING,
     DEFAULT_LM_STUDIO_URL,
+    DEFAULT_MODEL,
     DOMAIN,
 )
 from .coordinator import WeGoAssistCoordinator
@@ -234,11 +236,14 @@ class WeGoAssistConversationEntity(
                 conversation_id=user_input.conversation_id,
             )
 
-        preferred_model = "qwen/qwen3-8b"
+        selected_model = self.entry.options.get(
+            CONF_MODEL,
+            DEFAULT_MODEL,
+        )
 
         model = (
-            preferred_model
-            if preferred_model in models
+            selected_model
+            if selected_model in models
             else models[0]
         )
 

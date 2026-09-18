@@ -11,9 +11,13 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall
 
 from .const import (
+    CONF_AI_TIMEOUT,
     CONF_LM_STUDIO_URL,
+    CONF_MODEL,
     CONF_REQUEST_TIMEOUT,
+    DEFAULT_AI_TIMEOUT,
     DEFAULT_LM_STUDIO_URL,
+    DEFAULT_MODEL,
     DEFAULT_REQUEST_TIMEOUT,
     DOMAIN,
 )
@@ -77,11 +81,14 @@ async def async_setup_entry(
             )
             return
 
-        # Prefer the same model currently used by HA if available.
-        preferred_model = "qwen/qwen3-8b"
+        # Use the configured conversation model when available.
+        selected_model = entry.options.get(
+            CONF_MODEL,
+            DEFAULT_MODEL,
+        )
         model = (
-            preferred_model
-            if preferred_model in models
+            selected_model
+            if selected_model in models
             else models[0]
         )
 
@@ -101,8 +108,12 @@ async def async_setup_entry(
         start = time.monotonic()
 
         try:
+            ai_timeout = entry.options.get(
+                CONF_AI_TIMEOUT,
+                DEFAULT_AI_TIMEOUT,
+            )
             client_timeout = aiohttp.ClientTimeout(
-                total=180
+                total=ai_timeout
             )
 
             async with aiohttp.ClientSession(

@@ -3,15 +3,18 @@
 import voluptuous as vol
 
 from homeassistant import config_entries
+from homeassistant.helpers import selector
 
 from .const import (
     CONF_AI_TIMEOUT,
     CONF_DEBUG_LOGGING,
     CONF_LM_STUDIO_URL,
+    CONF_MODEL,
     CONF_REQUEST_TIMEOUT,
     DEFAULT_AI_TIMEOUT,
     DEFAULT_DEBUG_LOGGING,
     DEFAULT_LM_STUDIO_URL,
+    DEFAULT_MODEL,
     DEFAULT_REQUEST_TIMEOUT,
     DOMAIN,
 )
@@ -57,6 +60,27 @@ class WeGoAssistOptionsFlow(config_entries.OptionsFlow):
                 data=user_input,
             )
 
+        coordinator = self.hass.data.get(DOMAIN, {}).get(
+            self.config_entry.entry_id
+        )
+
+        models = (
+            coordinator.data.get("models", [])
+            if coordinator and coordinator.data
+            else []
+        )
+
+        selected_model = self.config_entry.options.get(
+            CONF_MODEL,
+            DEFAULT_MODEL,
+        )
+
+        # Keep the configured model selectable even if LM Studio
+        # temporarily does not report it.
+        model_options = list(models)
+        if selected_model not in model_options:
+            model_options.insert(0, selected_model)
+
         schema = vol.Schema(
             {
                 vol.Required(
@@ -66,6 +90,15 @@ class WeGoAssistOptionsFlow(config_entries.OptionsFlow):
                         DEFAULT_LM_STUDIO_URL,
                     ),
                 ): str,
+                vol.Required(
+                    CONF_MODEL,
+                    default=selected_model,
+                ): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=model_options,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                ),
                 vol.Required(
                     CONF_REQUEST_TIMEOUT,
                     default=self.config_entry.options.get(
