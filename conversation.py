@@ -367,6 +367,35 @@ class WeGoAssistConversationEntity(
 
                 message = result["choices"][0]["message"]
 
+                if debug_logging:
+                    response_content = message.get("content")
+                    response_tool_calls = message.get(
+                        "tool_calls",
+                        [],
+                    )
+
+                    _LOGGER.info(
+                        "AI response metadata: iteration=%s "
+                        "finish_reason=%s content_none=%s "
+                        "content_blank=%s content_chars=%s "
+                        "returned_tool_calls=%s",
+                        iteration + 1,
+                        result["choices"][0].get(
+                            "finish_reason"
+                        ),
+                        response_content is None,
+                        (
+                            isinstance(response_content, str)
+                            and not response_content.strip()
+                        ),
+                        (
+                            len(response_content)
+                            if isinstance(response_content, str)
+                            else 0
+                        ),
+                        len(response_tool_calls),
+                    )
+
                 tool_inputs = []
 
                 for tool_call in message.get(
