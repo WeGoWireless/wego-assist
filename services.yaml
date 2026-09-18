@@ -1,0 +1,12 @@
+test_prompt:
+  name: Test AI prompt
+  description: Send a test prompt directly to LM Studio.
+  fields:
+    prompt:
+      name: Prompt
+      description: Prompt to send to the local AI model.
+      required: true
+      example: "What model are you?"
+      selector:
+        text:
+          multiline: true
