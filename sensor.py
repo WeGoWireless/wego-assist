@@ -31,6 +31,7 @@ async def async_setup_entry(
         [
             WeGoAssistLatencySensor(coordinator, entry),
             WeGoAssistModelsSensor(coordinator, entry),
+            WeGoAssistLoadedModelsSensor(coordinator, entry),
             WeGoAssistDiagnosticSensor(
                 coordinator,
                 entry,
@@ -221,6 +222,70 @@ class WeGoAssistModelsSensor(
         return {
             "models": self.coordinator.data.get(
                 "models",
+                [],
+            )
+        }
+
+    @property
+    def device_info(self):
+        """Return device information."""
+
+        return {
+            "identifiers": {(DOMAIN, "wego_assist")},
+            "name": "WeGo Assist",
+            "manufacturer": "WeGo Wireless",
+            "model": "Local AI Assistant",
+        }
+
+
+class WeGoAssistLoadedModelsSensor(
+    CoordinatorEntity,
+    SensorEntity,
+):
+    """LM Studio currently loaded LLMs."""
+
+    _attr_has_entity_name = True
+    _attr_name = "LM Studio Loaded Models"
+    _attr_icon = "mdi:memory"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(
+        self,
+        coordinator: WeGoAssistCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize loaded models sensor."""
+
+        super().__init__(coordinator)
+
+        self._attr_unique_id = (
+            f"{entry.entry_id}_lm_studio_loaded_models"
+        )
+
+    @property
+    def native_value(self):
+        """Return number of currently loaded LLMs."""
+
+        if not self.coordinator.data:
+            return None
+
+        return len(
+            self.coordinator.data.get(
+                "loaded_models",
+                [],
+            )
+        )
+
+    @property
+    def extra_state_attributes(self):
+        """Return currently loaded model names."""
+
+        if not self.coordinator.data:
+            return {}
+
+        return {
+            "models": self.coordinator.data.get(
+                "loaded_models",
                 [],
             )
         }

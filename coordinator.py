@@ -95,14 +95,55 @@ class WeGoAssistCoordinator(DataUpdateCoordinator):
                 (time.monotonic() - start) * 1000
             )
 
+            models = [
+                model.get("id")
+                for model in payload.get("data", [])
+                if model.get("id")
+            ]
+
+            # LM Studio's native API reports which models are
+            # currently loaded. This is optional diagnostic data;
+            # failure here must not affect the normal health check.
+            loaded_models = []
+
+            if base_url.endswith("/v1"):
+                server_root = base_url[:-3]
+            else:
+                server_root = base_url
+
+            native_models_url = (
+                f"{server_root}/api/v1/models"
+            )
+
+            try:
+                async with session.get(
+                    native_models_url,
+                    timeout=client_timeout,
+                ) as response:
+                    response.raise_for_status()
+                    native_payload = await response.json()
+
+                loaded_models = [
+                    model.get("key")
+                    for model in native_payload.get(
+                        "models",
+                        [],
+                    )
+                    if model.get("type") == "llm"
+                    and model.get("key")
+                    and model.get("loaded_instances")
+                ]
+            except Exception as err:
+                _LOGGER.debug(
+                    "Unable to retrieve LM Studio loaded models: %s",
+                    err,
+                )
+
             return {
                 "connected": True,
                 "latency_ms": latency_ms,
-                "models": [
-                    model.get("id")
-                    for model in payload.get("data", [])
-                    if model.get("id")
-                ],
+                "models": models,
+                "loaded_models": loaded_models,
             }
 
         except Exception as err:
