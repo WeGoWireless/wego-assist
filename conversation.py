@@ -2,23 +2,32 @@
 
 from __future__ import annotations
 
+import json
+import logging
+from typing import Any
+
 import aiohttp
+import probatio
 
 from homeassistant.components import conversation
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import MATCH_ALL
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import llm
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
-from homeassistant.helpers.intent import IntentResponse
 
 from .const import (
     CONF_LM_STUDIO_URL,
-    CONF_REQUEST_TIMEOUT,
     DEFAULT_LM_STUDIO_URL,
-    DEFAULT_REQUEST_TIMEOUT,
     DOMAIN,
 )
 from .coordinator import WeGoAssistCoordinator
+
+_LOGGER = logging.getLogger(__name__)
+
+MAX_TOOL_ITERATIONS = 10
+AI_TIMEOUT = 180
 
 
 async def async_setup_entry(
@@ -40,6 +49,79 @@ async def async_setup_entry(
     )
 
 
+def _format_tool(
+    tool: llm.Tool,
+    custom_serializer,
+) -> dict[str, Any]:
+    """Convert a Home Assistant tool to OpenAI format."""
+
+    function = {
+        "name": tool.name,
+        "parameters": probatio.to_openapi(
+            tool.parameters,
+            custom_serializer=custom_serializer,
+        ),
+    }
+
+    if tool.description:
+        function["description"] = tool.description
+
+    return {
+        "type": "function",
+        "function": function,
+    }
+
+
+def _convert_content(content) -> dict[str, Any]:
+    """Convert Home Assistant chat content to OpenAI format."""
+
+    if isinstance(content, conversation.SystemContent):
+        return {
+            "role": "system",
+            "content": content.content,
+        }
+
+    if isinstance(content, conversation.UserContent):
+        return {
+            "role": "user",
+            "content": content.content,
+        }
+
+    if isinstance(content, conversation.ToolResultContent):
+        return {
+            "role": "tool",
+            "tool_call_id": content.tool_call_id,
+            "content": json.dumps(content.tool_result),
+        }
+
+    if isinstance(content, conversation.AssistantContent):
+        message: dict[str, Any] = {
+            "role": "assistant",
+            "content": content.content,
+        }
+
+        if content.tool_calls:
+            message["tool_calls"] = [
+                {
+                    "id": tool_call.id,
+                    "type": "function",
+                    "function": {
+                        "name": tool_call.tool_name,
+                        "arguments": json.dumps(
+                            tool_call.tool_args
+                        ),
+                    },
+                }
+                for tool_call in content.tool_calls
+            ]
+
+        return message
+
+    raise TypeError(
+        f"Unsupported chat content: {type(content)}"
+    )
+
+
 class WeGoAssistConversationEntity(
     conversation.ConversationEntity,
     conversation.AbstractConversationAgent,
@@ -49,6 +131,9 @@ class WeGoAssistConversationEntity(
     _attr_has_entity_name = True
     _attr_name = "WeGo Assist"
     _attr_supports_streaming = False
+    _attr_supported_features = (
+        conversation.ConversationEntityFeature.CONTROL
+    )
 
     def __init__(
         self,
@@ -98,6 +183,29 @@ class WeGoAssistConversationEntity(
     ) -> conversation.ConversationResult:
         """Process a conversation message."""
 
+        try:
+            await chat_log.async_provide_llm_data(
+                user_input.as_llm_context(DOMAIN),
+                llm.LLM_API_ASSIST,
+                (
+                    "You are WeGo Assist, a voice assistant "
+                    "for Home Assistant. Answer simply and "
+                    "to the point in plain text. "
+                    "For questions about the current state "
+                    "of the home, always use the available "
+                    "Home Assistant tools. Never invent an "
+                    "entity state, temperature, sensor value, "
+                    "or device. If Home Assistant cannot "
+                    "provide the requested information, say "
+                    "that you cannot find it. Preserve the "
+                    "measurement units returned by Home "
+                    "Assistant."
+                ),
+                user_input.extra_system_prompt,
+            )
+        except conversation.ConverseError as err:
+            return err.as_conversation_result()
+
         base_url = self.entry.options.get(
             CONF_LM_STUDIO_URL,
             DEFAULT_LM_STUDIO_URL,
@@ -110,7 +218,7 @@ class WeGoAssistConversationEntity(
         )
 
         if not models:
-            response = IntentResponse(
+            response = conversation.intent.IntentResponse(
                 language=user_input.language
             )
             response.async_set_speech(
@@ -130,64 +238,127 @@ class WeGoAssistConversationEntity(
             else models[0]
         )
 
-        payload = {
-            "model": model,
-            "messages": [
-                {
-                    "role": "system",
-                    "content": (
-                        "You are WeGo Assist, a voice assistant "
-                        "for Home Assistant. Answer simply and "
-                        "to the point in plain text."
-                    ),
-                },
-                {
-                    "role": "user",
-                    "content": user_input.text,
-                },
-            ],
-            "stream": False,
-        }
+        tools = None
+
+        if chat_log.llm_api:
+            tools = [
+                _format_tool(
+                    tool,
+                    chat_log.llm_api.custom_serializer,
+                )
+                for tool in chat_log.llm_api.tools
+            ]
 
         url = f"{base_url}/chat/completions"
 
-        # AI inference can take substantially longer than
-        # the LM Studio health check.
-        timeout = aiohttp.ClientTimeout(total=180)
+        session = async_get_clientsession(self.hass)
+        timeout = aiohttp.ClientTimeout(total=AI_TIMEOUT)
+
+        agent_id = self.entity_id or DOMAIN
 
         try:
-            async with aiohttp.ClientSession(
-                timeout=timeout
-            ) as session:
+            for iteration in range(MAX_TOOL_ITERATIONS):
+                payload: dict[str, Any] = {
+                    "model": model,
+                    "messages": [
+                        _convert_content(content)
+                        for content in chat_log.content
+                    ],
+                    "stream": False,
+                }
+
+                if tools:
+                    payload["tools"] = tools
+                    payload["tool_choice"] = "auto"
+
                 async with session.post(
                     url,
                     json=payload,
+                    timeout=timeout,
                 ) as http_response:
                     http_response.raise_for_status()
                     result = await http_response.json()
 
-            answer = result["choices"][0]["message"]["content"]
+                message = result["choices"][0]["message"]
+
+                tool_inputs = []
+
+                for tool_call in message.get(
+                    "tool_calls",
+                    [],
+                ):
+                    function = tool_call["function"]
+                    arguments = function.get(
+                        "arguments",
+                        {},
+                    )
+
+                    if isinstance(arguments, str):
+                        arguments = json.loads(
+                            arguments or "{}"
+                        )
+
+                    tool_inputs.append(
+                        llm.ToolInput(
+                            id=tool_call.get("id"),
+                            tool_name=function["name"],
+                            tool_args=arguments,
+                        )
+                    )
+
+                assistant_content = (
+                    conversation.AssistantContent(
+                        agent_id=agent_id,
+                        content=message.get("content"),
+                        tool_calls=tool_inputs or None,
+                    )
+                )
+
+                async for _tool_result in (
+                    chat_log.async_add_assistant_content(
+                        assistant_content
+                    )
+                ):
+                    pass
+
+                if not tool_inputs:
+                    break
+
+            else:
+                _LOGGER.error(
+                    "WeGo Assist exceeded %d tool iterations",
+                    MAX_TOOL_ITERATIONS,
+                )
+
+                final_content = conversation.AssistantContent(
+                    agent_id=agent_id,
+                    content=(
+                        "I was unable to complete that request."
+                    ),
+                )
+
+                chat_log.async_add_assistant_content_without_tools(
+                    final_content
+                )
 
         except Exception:
-            response = IntentResponse(
-                language=user_input.language
-            )
-            response.async_set_speech(
-                "I had a problem communicating with LM Studio."
+            _LOGGER.exception(
+                "WeGo Assist conversation request failed"
             )
 
-            return conversation.ConversationResult(
-                response=response,
-                conversation_id=user_input.conversation_id,
+            final_content = conversation.AssistantContent(
+                agent_id=agent_id,
+                content=(
+                    "I had a problem communicating with "
+                    "LM Studio or Home Assistant."
+                ),
             )
 
-        response = IntentResponse(
-            language=user_input.language
-        )
+            chat_log.async_add_assistant_content_without_tools(
+                final_content
+            )
 
-        response.async_set_speech(answer)
-
-        return conversation.ConversationResult(
-            response=response,
-            conversation_id=user_input.conversation_id,
+        return conversation.async_get_result_from_chat_log(
+            user_input,
+            chat_log,
         )
