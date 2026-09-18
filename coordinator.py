@@ -46,6 +46,7 @@ class WeGoAssistCoordinator(DataUpdateCoordinator):
             "tool_data_bytes": None,
             "message_data_bytes": None,
             "system_context_bytes": None,
+            "conversation_data_bytes": None,
             "response_time_ms": None,
             "message_count": None,
             "tool_count": None,

@@ -314,6 +314,11 @@ class WeGoAssistConversationEntity(
                     if message.get("role") == "system"
                 )
 
+                conversation_data_bytes = max(
+                    0,
+                    message_data_bytes - system_context_bytes,
+                )
+
                 turn_bytes += request_bytes
 
                 self.coordinator.ai_diagnostics.update(
@@ -323,6 +328,7 @@ class WeGoAssistConversationEntity(
                         "tool_data_bytes": tool_data_bytes,
                         "message_data_bytes": message_data_bytes,
                         "system_context_bytes": system_context_bytes,
+                        "conversation_data_bytes": conversation_data_bytes,
                         "response_time_ms": None,
                         "message_count": len(
                             payload["messages"]

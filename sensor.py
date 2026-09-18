@@ -73,6 +73,14 @@ async def async_setup_entry(
             WeGoAssistDiagnosticSensor(
                 coordinator,
                 entry,
+                "conversation_data_bytes",
+                "AI Conversation Data",
+                "B",
+                "mdi:forum-outline",
+            ),
+            WeGoAssistDiagnosticSensor(
+                coordinator,
+                entry,
                 "response_time_ms",
                 "AI Response Time",
                 "ms",
